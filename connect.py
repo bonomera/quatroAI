@@ -2,6 +2,7 @@ import socket
 import json
 import time
 import threading
+from algo import game # Import the game function from algo.py who will be used to make decisions 
 
 def connection():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -50,7 +51,6 @@ def refreshdata(conn, addr):
     try:
         while True:
             ping= conn.recv(1024).decode('utf-8')
-            print(f"Received from {addr}: {ping}")
             try:
                 ping_data = json.loads(ping)
                 if ping_data.get('request') == 'ping':
@@ -61,11 +61,12 @@ def refreshdata(conn, addr):
                     print(f"Pong sent to {addr}")
                 elif ping_data.get('request') == 'play':
                     print(f"Play request received from {addr}, starting game...")
-                    game()
+                    state_game = ping_data.get('state')
+                    game(state_game)
                 else:
                     print(f"Invalid request from {addr}: {ping_data}")
             except json.JSONDecodeError:
-                print(f"Received non-JSON data from {addr}: {ping}")
+                continue
     except socket.error as e:
         print(f"Socket error with {addr}: {e}")
     finally:
@@ -90,10 +91,6 @@ def main(port, host):
     finally:
         s.close()
         print("Server socket closed")
-
-def game():
-    pass
-
 
 # execution of the program
 try:
