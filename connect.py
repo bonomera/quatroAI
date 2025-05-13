@@ -2,19 +2,19 @@ import socket
 import json
 import time
 import threading
-from algo import game,find_best_negamax_move # Imports game logic and AI decision making.
+from algo import game,find_best_negamax_move  # Imports game logic and AI decision making.
 import json
 import os
 
-def save_error(seconds): # Saves timing data or errors to a JSON file.
+def save_time(seconds): # Saves timing data or errors to a JSON file.
     file_path = os.path.join(os.path.dirname(__file__), 'times.json')
-    error = []
+    times = []
     try:
         with open(file_path, 'r') as f:
             times = json.load(f)
     except FileNotFoundError:
         pass
-    error.append(seconds)
+    times.append(seconds)
     try:
         with open(file_path, 'w') as f:
             json.dump(times, f)
@@ -63,7 +63,8 @@ def refreshdata(conn, addr): # Handles requests (ping, play) from a game server 
     try:
         while True:
             ping = conn.recv(1024).decode('utf-8') # Receive and decode data from the game server continually
-
+            if not ping: # Connection closed by remote.
+                break
             try:
                 ping_data = json.loads(ping)
                 if ping_data.get('request') == 'ping': # Answer pong in json if receive ping from server
@@ -71,18 +72,18 @@ def refreshdata(conn, addr): # Handles requests (ping, play) from a game server 
                     conn.sendall(json.dumps(pong).encode('utf-8'))
 
                 elif ping_data.get('errors') != []: # Save error list 
-                    save_error(ping_data.get('errors'))
+                    save_time(ping_data.get('errors'))
 
                 elif ping_data.get('request') == 'play': # Play if server requests a move.
                     state_game = ping_data.get('state')
                     try:
+                            start_time = time.time()
                             pos, piece_to_give = game(state_game) # AI calculates the best move.
-                            
                             while pos is None and state_game["board"] != [None]*16: # Retry logic if move calculation failed initially.
                                 depth = 6
                                 player = str(state_game["current"])
                                 pos, piece_to_give= game(state_game, player, depth+1)
-
+                            timeop = time.time() - start_time
                             move_payload = { "pos": pos, "piece": piece_to_give }
                             move_response = { "response": "move", "move": move_payload, "message": f"^^)" }
                             print(f"==> Sending Move: Place at {pos}, Give piece {piece_to_give} in {timeop:.4f}s")

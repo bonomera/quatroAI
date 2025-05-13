@@ -6,6 +6,7 @@ def board_into_int(state):
     return [None if x == 'None' or x is None else x for x in state["board"]]
 
 def piece():
+    # Generates and returns a list of all 16 unique game piece strings
     pieces = []
     tailles = ['B', 'S']  # Big, Small
     couleurs = ['L', 'D']  # Light, Dark
@@ -22,13 +23,15 @@ def piece():
     return pieces
 
 def conversion_piece(piecen):
-    if piecen in piece():
+    # Standardizes a given piece 'piecen' into the canonical 4-character string format
+    if piecen in piece(): # Checks if it's already in the standard list
         return piecen
     if piecen is None:
         return None
     else:
-        piecen = list(piecen)
-        for i in piecen:
+        piecen = list(piecen) # Converts input to a list of characters
+        # The following variables will store the identified attribute characters
+        for i in piecen: # Iterates through characters to identify attributes
             if i in ['B', 'S']:
                 tailles = i 
             if i in ['L', 'D']:
@@ -37,10 +40,11 @@ def conversion_piece(piecen):
                 remplissages = i
             if i in ['P', 'C']:
                 formes = i
-        piece_final = tailles + couleurs + remplissages + formes
+        piece_final = tailles + couleurs + remplissages + formes # Reconstructs the piece string
     return piece_final
 
 def same(L):
+    # Checks if all pieces in a list L (a line) share at least one common attribute
     if None in L:
         return False
     common = frozenset(L[0])
@@ -50,40 +54,49 @@ def same(L):
 
 
 def getLine(board, i):
+    # Returns row
     return board[i * 4 : (i + 1) * 4]
 
 
 def getColumn(board, j):
+    # Returns column
     return [board[i] for i in range(j, 16, 4)]
 
 
 # dir == 1 or -1
 def getDiagonal(board, dir):
+    # Returns a diagonal 
     start = 0 if dir == 1 else 2
     return [board[start + i * (4 + dir)] for i in range(4)]
 
 
-def winner(board):
-    player = currentPlayer(board)
-    board = board["board"]
+def winner(state):
+    # Determines if there is a winner in the given game state 'board_state'
+    player = currentPlayer(state)
+    board = state["board"] # Accesses the actual board list from the state
+    # The winner is the player who made the *last* move
     for i in range(4):
         if same(getLine(board, i)):
-            return player
+            return 1- player
         if same(getColumn(board, i)):
-            return player
+            return 1- player
     if same(getDiagonal(board, 1)):
-        return player
-    return same(getDiagonal(board, -1))
+        return 1- player
+    if same(getDiagonal(board, -1)):
+        return 1- player
+    return False
 
 def utility(state, player):
-	theWinner = winner(state)
-	if theWinner is False and isFull(state) is True:
-		return 0
-	if theWinner == player:
-		return float('inf')
-	return -float('inf')
+	# Calculates the utility of a terminal game state
+    theWinner = winner(state) # Determines the winner of the state
+    if theWinner is False and isFull(state["board"]) is True: 
+        return 0 # Draw.
+    if theWinner == player: # `player_perspective` won
+        return float('inf')
+    return -float('inf') # `player_perspective` lost
 
 def gameOver(state):
+    # Checks if the game has ended (either by a win or a full board)
 	if winner(state) is str:
 		return True
 
@@ -96,23 +109,12 @@ def gameOver(state):
 def currentPlayer(state):
 
     return state["current"]
-def isFull(board):
+
+def isFull(board): # Checks if the game board has no empty (None) spots
     for elem in board:
         if elem is None:
             return False
     return True
-
-def moves(state):
-    pieces = piece()
-    res = []
-    for i, elem in enumerate(state):
-        if elem is None:
-            res.append(i)
-        if elem in pieces:
-            pieces.remove(elem)
-          
-    random.shuffle(res)
-    return res
 
 def apply(state, move):
     position, piece, next_piece = move
@@ -125,20 +127,20 @@ def apply(state, move):
     return res
 
 def check_threat(line):
-    pieces = [p for p in line if p is not None]
-    if len(pieces) == 3:
+    # Checks if a given 'line' (row, col, or diag) has 3 pieces sharing a common attribute
+    pieces = [p for p in line if p is not None] # Collect actual pieces in the line
+    if len(pieces) == 3: # A threat requires exactly 3 pieces
         common_attributes = pieces[0] & pieces[1] & pieces[2]
         return len(common_attributes) > 0
     return False
 
 def evaluate_heuristic(state, player):
+    # Calculates a heuristic score for the board state (threats, center control)
     board = state["board"]
     score = 0
 
-    threat_count = 0
-    lines = []
-
-
+    threat_count = 0 # Counts lines with 3 pieces sharing an attribute
+    lines = [] # List to hold all rows, columns, and diagonals
     for i in range(4):
         lines.append(getLine(board, i))
         lines.append(getColumn(board, i))
@@ -146,26 +148,22 @@ def evaluate_heuristic(state, player):
     lines.append(getDiagonal(board, -1))
 
     for line in lines:
-        if check_threat(line):
+        if check_threat(line): # If the line is a threat
             threat_count += 1
-
- 
-
     score += threat_count * 15 
 
-
-    center_indices = [5, 6, 9, 10]
-    center_control = 0
+    center_indices = [5, 6, 9, 10] # Indices of the 4 central squares
+    center_control = 0 # Counts pieces in the center
     for i in center_indices:
         if board[i] is not None:
             center_control += 1
 
-    score += center_control * 3 
+    score += center_control * 3 # Weight center control
     return score           
 
 def negamax(state, player, depth, alpha=-float('inf'), beta=float('inf')):
-    """Version corrigée de Negamax utilisant l'heuristique."""
-    def winnerF(board):
+    # Implements Negamax with alpha-beta pruning to find the best score for player_at_node
+    def winnerF(board): # Winner def bur return Truf if win and False if lose
         for i in range(4):
             if same(getLine(board, i)):
                 return True
@@ -176,21 +174,20 @@ def negamax(state, player, depth, alpha=-float('inf'), beta=float('inf')):
         return same(getDiagonal(board, -1))
 
 
-    if winner(state) is int or isFull(state["board"]) or depth == 0:
-        return utility(state, player)
+    if winner(state) is int or isFull(state["board"]):
+        return utility(state, player) # Use utility for true terminal states.
 
 
-    if depth == 0 and isFull(state["board"]) is False:
+    if depth == 0 and isFull(state["board"]) is False: # heuristic call if depth is 0 
         return evaluate_heuristic(state, player) 
 
 
 
-    value = -float('inf')
+    value = -float('inf') # Stores the maximum score found for player_at_node.
 
-
-    piece_to_place = state["piece"]
-    board = deepcopy(state["board"])
-    current_player_index_str = str(state["current"])
+    piece_to_place = state["piece"] # Piece player_at_node must place.
+    board = deepcopy(state["board"]) # Work on a copy of the board.
+    current_player_index_str = str(state["current"]) # Should be same as player_at_node.
     opponent_player_index_str = str(1 - int(current_player_index_str))
 
 
@@ -198,6 +195,7 @@ def negamax(state, player, depth, alpha=-float('inf'), beta=float('inf')):
     if piece_to_place:
          placed_pieces_fs.add(piece_to_place) 
 
+    # Determine available pieces to give to the opponent and position unused
     pieces = piece()
     res = []
     for i, elem in enumerate(state["board"]):
@@ -209,23 +207,24 @@ def negamax(state, player, depth, alpha=-float('inf'), beta=float('inf')):
     available_to_give = pieces 
 
 
-    for i in empty_positions:
-        new_board = list(board) 
-        new_board[i] = piece_to_place 
+    for i in empty_positions: # Iterate over possible placement positions
+        new_board = list(board) # Create a aonther board for this move
+        new_board[i] = piece_to_place # Place the piece
 
 
-        if winnerF(new_board) is True:
+        if winnerF(new_board) is True: # If this placement wins for player_at_node
 
             value = max(value, float('inf'))
 
             alpha = max(alpha, value)
             if alpha >= beta:
-                 return value 
-            continue 
+                 return value # Pruning if win is found and good enough
+            continue # Try next placement if not pruning
 
 
-        if not available_to_give: 
-             current_eval = 0 
+        # If not an immediate win, consider pieces to give to opponent
+        if not available_to_give: # No pieces left to give.
+             current_eval = 0 # Draw
         else:
              best_recursive_score = -float('inf')
 
@@ -236,10 +235,11 @@ def negamax(state, player, depth, alpha=-float('inf'), beta=float('inf')):
                     "board": tuple(new_board),
                     "piece": next_piece_to_give 
                 }
+                # Recursive call for opponent. Score is from opponent's view. Negate for player_at_node's view
                 eval_opponent = -negamax(next_state, opponent_player_index_str, depth - 1, -beta, -alpha)
                 best_recursive_score = max(best_recursive_score, eval_opponent)
 
-             current_eval = best_recursive_score 
+             current_eval = best_recursive_score # Update best score for player_at_node.
 
         value = max(value, current_eval)
 
@@ -248,33 +248,35 @@ def negamax(state, player, depth, alpha=-float('inf'), beta=float('inf')):
             break 
 
     return value 
-def find_best_negamax_move(state, player, depth, start_time):
+def find_best_negamax_move(state, player, depth):
+    # Finds the best (position to place, piece to give) using Negamax evaluation
     best_score = -float('inf')
     best_move_pos = None
     best_piece_to_give = None
 
-    piece_to_place = state["piece"]
+    piece_to_place = state["piece"] # Piece current `player` must place
     board = state["board"]
     current_player_index_str = str(state["current"])
     opponent_player_index_str = str(1 - int(current_player_index_str))
-
+    # Determine available pieces to give and empty positions
     pieces = piece()
     res = []
     for i, elem in enumerate(state["board"]):
         if elem is None:
-            res.append(i)
+            res.append(i) # Add empty pos
         if elem in pieces:
-            pieces.remove(elem)
+            pieces.remove(elem) # Remove on-board pieces 
     try:
-        pieces.remove(state["piece"])
+        pieces.remove(state["piece"]) # Check before removing
     except:
         random.choice(pieces)
     empty_positions = res
     available_to_give = pieces 
-    if state["board"] == [None]*16 and state["piece"] is None:
-        
+
+    if state["board"] == [None]*16 and state["piece"] is None: # Startint game useless to use AI
         return None, random.choice(pieces)
-    if state["board"] == [None]*16 and state["piece"] is not None:
+    
+    if state["board"] == [None]*16 and state["piece"] is not None: # Second move useless to use AI
         return random.choice(res), random.choice(pieces)
     
     def winnerF(board):
@@ -287,12 +289,12 @@ def find_best_negamax_move(state, player, depth, start_time):
             return True
         return same(getDiagonal(board, -1))
     
-    if not empty_positions: return None, None 
+    if not empty_positions: return None, None # No place to move
 
 
-    for i in empty_positions:
+    for i in empty_positions: # Iterate over possible placements
         new_board = list(board)
-        new_board[i] = piece_to_place
+        new_board[i] = piece_to_place # Place the piece
 
 
         if winnerF(new_board) is True:
@@ -301,20 +303,20 @@ def find_best_negamax_move(state, player, depth, start_time):
                 chosen_piece_for_next = random.choice(available_to_give)
              except:
                 move_score = 0
-                chosen_piece_for_next = None
+                chosen_piece_for_next = None 
         else:
 
             temp_best_recursive_score = -float('inf')
             temp_chosen_piece = None
-            for next_piece in available_to_give:
+            for next_piece in available_to_give: # Try giving each available piece
                  next_state = {
                      "players": state["players"],
                      "current": opponent_player_index_str,
                      "board": tuple(new_board), 
                      "piece": next_piece
                  }
-                 
-                 eval_opponent = -negamax(next_state, opponent_player_index_str, depth - 1, -float('inf'), float('inf')) # inversion des données
+                # eval_opponent is score from opponent's view. Negate for player's view
+                 eval_opponent = -negamax(next_state, opponent_player_index_str, depth - 1, -float('inf'), float('inf')) 
 
 
                  if eval_opponent > temp_best_recursive_score:
@@ -324,17 +326,17 @@ def find_best_negamax_move(state, player, depth, start_time):
             move_score = temp_best_recursive_score
             chosen_piece_for_next = temp_chosen_piece
 
-
+        # Update overall best score and move found
         if move_score > best_score:
             best_score = move_score
             best_move_pos = i
             best_piece_to_give = chosen_piece_for_next
 
+    # Security if bug in algorithm
+    if best_piece_to_give is None and available_to_give: # If no piece chosen and pieces are available
+        best_piece_to_give = next(iter(available_to_give)) # Pick first available 
 
-    if best_piece_to_give is None and available_to_give:
-        best_piece_to_give = next(iter(available_to_give))
-
-    if best_move_pos is None and state["board"] != [None]*16:
+    if best_move_pos is None and state["board"] != [None]*16: # If no position chosen and board not empty
          return random.choice(empty_positions), best_piece_to_give
     return best_move_pos, best_piece_to_give
 
@@ -355,19 +357,19 @@ def find_best_negamax_move(state, player, depth, start_time):
     # Derniere verification
     return pos, piece_give'''
 
-def game(state):
-    depth = 2
-    depthgrowth = 0
+def game(state):  # Main AI decision function for the game
+    depth = 2 # Default search depth
+    depthgrowth = 0 # Dynamic progration of depth 
     for i in state["board"]:
         if i is not None:
             depthgrowth += 1
     if 10 > depthgrowth >= 7:
-        depth += 1
+        depth += 1 # Increase depth in mid-game
     if 14 > depthgrowth >= 10:
-        depth = 8
-    start_time = time.time()
-    state = deepcopy(state)
-    state["piece"] = conversion_piece(state["piece"])
+        depth = 8 # Set specific depth for late game
+    state = deepcopy(state) # Work on a copy of the state
+    state["piece"] = conversion_piece(state["piece"]) # Standardize piece to place
+      # Standardize all pieces on the board
     boardreal = []
     for i in state["board"]:
         boardreal.append(conversion_piece(i))
@@ -375,5 +377,5 @@ def game(state):
     state["board"] = boardreal
     player = str(state["current"])
     print(state)
-    pos, piece_give = find_best_negamax_move(state, player, depth, start_time)
+    pos, piece_give = find_best_negamax_move(state, player, depth)
     return pos, piece_give
