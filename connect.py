@@ -39,9 +39,9 @@ def connection(): # Establishes and returns a socket connection to the game serv
 def identification(s): # Sends identification to server, returns the port for server to connect back.
     try:
         identifiant = {"request": "subscribe", 
-                        "port": 54345, # Port this client will listen on for server messages.
-                        "name": "BotBotBot", # Name of the client
-                        "matricules": ["23383"]} # Matricule
+                        "port": 12345, # Port this client will listen on for server messages.
+                        "name": "BotBotBot2", # Name of the client
+                        "matricules": ["23387"]} # Matricule
         json_identifiant = json.dumps(identifiant)
         s.sendall(json_identifiant.encode('utf-8'))
         response = s.recv(1024).decode('utf-8') # Receive server's response.
@@ -76,18 +76,14 @@ def refreshdata(conn, addr): # Handles requests (ping, play) from a game server 
                 elif ping_data.get('request') == 'play': # Play if server requests a move.
                     state_game = ping_data.get('state')
                     try:
-                            start_time = time.time()
                             pos, piece_to_give = game(state_game) # AI calculates the best move.
                             while pos is None and state_game["board"] != [None]*16 and time.time()- start_time < 3 : # Retry logic if move calculation failed initially.
                                 depth = 6
                                 player = str(state_game["current"])
-                                pos, piece_to_give= game(state_game, player, depth+1)
-                            timeop = time.time() - start_time
+                                pos, piece_to_give= find_best_negamax_move(state_game, player, depth+1)
                             move_payload = { "pos": pos, "piece": piece_to_give }
                             move_response = { "response": "move", "move": move_payload, "message": f"^^)" }
-                            print(f"==> Sending Move: Place at {pos}, Give piece {piece_to_give} in {timeop:.4f}s")
                             conn.sendall((json.dumps(move_response) + '\n').encode('utf-8')) # Send the calculated move.
-                            print("Move sent successfully.")
                     except:
                         save_time(state_game)
                         pass

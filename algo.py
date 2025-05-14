@@ -346,24 +346,70 @@ def shufflepiece(piece_final):
     piece = ''.join(piece)
     return piece
 
-def game(state):  # Main AI decision function for the game
-    depth = 2 # Default search depth
-    depthgrowth = 0 # Dynamic progration of depth 
-    for i in state["board"]:
-        if i is not None:
-            depthgrowth += 1
-    if 10 > depthgrowth >= 7:
-        depth += 1 # Increase depth in mid-game
-    if 14 > depthgrowth >= 10:
-        depth = 8 # Set specific depth for late game
-    state = deepcopy(state) # Work on a copy of the state
-    state["piece"] = conversion_piece(state["piece"]) # Standardize piece to place
-      # Standardize all pieces on the board
-    boardreal = []
-    for i in state["board"]:
-        boardreal.append(conversion_piece(i))
-    
-    state["board"] = boardreal
+import threading
+def game(state):
+    # Standardize input state
+    state = deepcopy(state)
+    state["piece"] = conversion_piece(state["piece"])
+    state["board"] = [conversion_piece(p) for p in state["board"]]
     player = str(state["current"])
-    pos, piece_give = find_best_negamax_move(state, player, depth)
-    return pos, shufflepiece(piece_give)
+    
+    # For regular game play, use threading with timeout
+    result = [None, None]  # Will store the final position and piece
+    
+    # Flag to stop the calculation thread
+    stop_calculation = threading.Event()
+    
+    def calculation_thread():
+        try:
+            # Start with depth 1 and increase gradually
+            current_depth = 1
+            best_move = (None, None)
+            
+            while not stop_calculation.is_set() and current_depth <= 9:  # Max depth 9
+                move = find_best_negamax_move(deepcopy(state), player, current_depth)
+                
+                if move[0] is not None and move[1] is not None:
+                    best_move = move
+                    result[0] = move[0]  # Position
+                    result[1] = move[1]  # Piece to give
+                    
+                current_depth += 1
+        except Exception as e:
+            print(f"Error in calculation thread: {e}")
+    
+    # Start the calculation thread
+    thread = threading.Thread(target=calculation_thread)
+    thread.daemon = True
+    
+    start_time = time.time()
+    thread.start()
+    
+    # Wait for the thread with timeout
+    thread.join(timeout=2.5)  # Slightly less than 3s to ensure safe return
+    
+    # Signal the thread to stop if it's still running
+    stop_calculation.set()
+    
+    # Calculate empty positions and available pieces for fallback
+    empty_positions = [i for i in range(16) if state["board"][i] is None]
+    available_pieces = piece()
+    for p in state["board"]:
+        if p in available_pieces:
+            available_pieces.remove(p)
+    try:
+        available_pieces.remove(state["piece"])
+    except:
+        pass
+    
+    # If we have a valid result, use it
+    if result[0] is not None and result[1] is not None:
+        return result[0], shufflepiece(result[1])
+    
+    # Otherwise, make a random move as fallback
+    if empty_positions and available_pieces:
+        return random.choice(empty_positions), shufflepiece(random.choice(available_pieces))
+    elif empty_positions:
+        return random.choice(empty_positions), None
+    
+    return None, None  # No move possible
