@@ -77,13 +77,13 @@ def winner(state):
     # The winner is the player who made the *last* move
     for i in range(4):
         if same(getLine(board, i)):
-            return 1- player
+            return 1 - player
         if same(getColumn(board, i)):
-            return 1- player
+            return 1 - player
     if same(getDiagonal(board, 1)):
-        return 1- player
+        return 1 - player
     if same(getDiagonal(board, -1)):
-        return 1- player
+        return 1 - player
     return False
 
 def utility(state, player):
@@ -107,7 +107,6 @@ def gameOver(state):
 	return empty == 0
 
 def currentPlayer(state):
-
     return state["current"]
 
 def isFull(board): # Checks if the game board has no empty (None) spots
@@ -130,8 +129,9 @@ def check_threat(line):
     # Checks if a given 'line' (row, col, or diag) has 3 pieces sharing a common attribute
     pieces = [p for p in line if p is not None] # Collect actual pieces in the line
     if len(pieces) == 3: # A threat requires exactly 3 pieces
-        common_attributes = pieces[0] & pieces[1] & pieces[2]
-        return len(common_attributes) > 0
+
+        common_attributes = frozenset(pieces[0]) & frozenset(pieces[1]) & frozenset(pieces[2])
+        return len(common_attributes) > 0 
     return False
 
 def evaluate_heuristic(state, player):
@@ -340,22 +340,11 @@ def find_best_negamax_move(state, player, depth):
          return random.choice(empty_positions), best_piece_to_give
     return best_move_pos, best_piece_to_give
 
-'''def game(state):
-    start_time = time.time()
-    state["piece"] = conversion_piece(state["piece"])
-    player = str(state["current"])
-    depth = 20
-    depthgrowth = 0
-    for i in state["board"]:
-        if i is not None:
-            depthgrowth += 1
-    if 10 > depthgrowth >= 7:
-        depth += 1
-    if 14 > depthgrowth >= 10:
-        depth = 8
-    pos, piece_give = find_best_negamax_move(state, player, depth, start_time)
-    # Derniere verification
-    return pos, piece_give'''
+def shufflepiece(piece_final):
+    piece = list(piece_final)
+    random.shuffle(piece)
+    piece = ''.join(piece)
+    return piece
 
 def game(state):  # Main AI decision function for the game
     depth = 2 # Default search depth
@@ -376,6 +365,5 @@ def game(state):  # Main AI decision function for the game
     
     state["board"] = boardreal
     player = str(state["current"])
-    print(state)
     pos, piece_give = find_best_negamax_move(state, player, depth)
-    return pos, piece_give
+    return pos, shufflepiece(piece_give)

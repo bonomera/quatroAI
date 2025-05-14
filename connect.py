@@ -63,8 +63,7 @@ def refreshdata(conn, addr): # Handles requests (ping, play) from a game server 
     try:
         while True:
             ping = conn.recv(1024).decode('utf-8') # Receive and decode data from the game server continually
-            if not ping: # Connection closed by remote.
-                break
+            
             try:
                 ping_data = json.loads(ping)
                 if ping_data.get('request') == 'ping': # Answer pong in json if receive ping from server
@@ -79,7 +78,7 @@ def refreshdata(conn, addr): # Handles requests (ping, play) from a game server 
                     try:
                             start_time = time.time()
                             pos, piece_to_give = game(state_game) # AI calculates the best move.
-                            while pos is None and state_game["board"] != [None]*16: # Retry logic if move calculation failed initially.
+                            while pos is None and state_game["board"] != [None]*16 and time.time()- start_time < 3 : # Retry logic if move calculation failed initially.
                                 depth = 6
                                 player = str(state_game["current"])
                                 pos, piece_to_give= game(state_game, player, depth+1)
@@ -89,22 +88,16 @@ def refreshdata(conn, addr): # Handles requests (ping, play) from a game server 
                             print(f"==> Sending Move: Place at {pos}, Give piece {piece_to_give} in {timeop:.4f}s")
                             conn.sendall((json.dumps(move_response) + '\n').encode('utf-8')) # Send the calculated move.
                             print("Move sent successfully.")
-                    except TimeoutError:
-                        print("AI Error: Calculation timed out! Cannot send move.")
-                    except Exception as ai_error:
+                    except:
                         save_time(state_game)
-                        print(f"!!! AI Error during move calculation: {ai_error}")
-                        import traceback
-                        traceback.print_exc()
-                # else: # Potentially invalid or unhandled request.
-                    # print(f"Invalid request from {addr}: {ping_data}") 
+                        pass
             except json.JSONDecodeError:
                 continue # Ignores malformed JSON messages.
     except socket.error as e:
         print(f"Socket error with {addr}: {e}")
     finally:
         conn.close()
-        print(f"Connection closed with {addr}")
+        print(f"Connection closed with {addr} ")
 
 def main(port, host): # Sets up this client's server to listen for game server's requests.
     address = (host, port)
