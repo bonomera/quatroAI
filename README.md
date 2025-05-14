@@ -50,3 +50,7 @@ The project uses the following Python libraries:
 * `threading` — to run the local server alongside the main client logic.
 * `random` — to shuffle the list of available pieces and add randomness.
 * `copy`, `deepcopy` — to duplicate game states during the AI’s search process.
+
+## Student ID (matricule)
+
+Im alone, my ID : 23383
