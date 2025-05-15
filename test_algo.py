@@ -263,7 +263,7 @@ class TestAlgo:
     def test_game(self, mock_find_best):
         # Test main game function with different board states
         mock_find_best.return_value = (3, 'SDFC')
-        
+        start_time = 0
         # Empty board
         state = {
             "players": ["Player1", "Player2"],
@@ -271,7 +271,7 @@ class TestAlgo:
             "board": [None] * 16,
             "piece": "BLEP"
         }
-        pos, piece = algo.game(state)
+        pos, piece = algo.game(state,start_time)
         assert pos == 3
         
         # Mid-game (7-9 pieces on board should increase depth)
@@ -279,7 +279,7 @@ class TestAlgo:
                          'SDFC', 'SLEP', 'BDEP', None,
                          None, None, None, None,
                          None, None, None, None]
-        pos, piece = algo.game(state)
+        pos, piece = algo.game(state,start_time)
         assert pos == 3
         
         # Late game (10-13 pieces should set depth to 8)
@@ -287,7 +287,7 @@ class TestAlgo:
                          'SDFC', 'SLEP', 'BDEP', 'SLFC',
                          'BLEC', 'SDEC', None, None,
                          None, None, None, None]
-        pos, piece = algo.game(state)
+        pos, piece = algo.game(state,start_time)
         assert pos == 3
 
 

@@ -151,7 +151,6 @@ def evaluate_heuristic(state, player):
         if check_threat(line): # If the line is a threat
             threat_count += 1
     score += threat_count * 15 
-
     center_indices = [5, 6, 9, 10] # Indices of the 4 central squares
     center_control = 0 # Counts pieces in the center
     for i in center_indices:
@@ -248,6 +247,7 @@ def negamax(state, player, depth, alpha=-float('inf'), beta=float('inf')):
             break 
 
     return value 
+
 def find_best_negamax_move(state, player, depth):
     # Finds the best (position to place, piece to give) using Negamax evaluation
     best_score = -float('inf')
@@ -347,7 +347,7 @@ def shufflepiece(piece_final):
     return piece
 
 import threading
-def game(state):
+def game(state,start_time):
     # Standardize input state
     state = deepcopy(state)
     state["piece"] = conversion_piece(state["piece"])
@@ -355,61 +355,39 @@ def game(state):
     player = str(state["current"])
     
     # For regular game play, use threading with timeout
-    result = [None, None]  # Will store the final position and piece
     
     # Flag to stop the calculation thread
     stop_calculation = threading.Event()
-    
-    def calculation_thread():
+    def calculation_thread(result):
         try:
             # Start with depth 1 and increase gradually
-            current_depth = 1
-            best_move = (None, None)
-            
-            while not stop_calculation.is_set() and current_depth <= 9:  # Max depth 9
+            current_depth = 2
+            empty_positions = [i for i in range(16) if state["board"][i] is None]
+            if len(empty_positions) < 13:
+                while not stop_calculation.is_set() and current_depth <= 15:  # Max depth 15
+                    move = find_best_negamax_move(deepcopy(state), player, current_depth)
+                    print(f'profondeur : {current_depth}')
+                    if move[0] is not None:
+                        result[0] = move[0]  # Position
+                        result[1] = shufflepiece(move[1])  # Piece to give
+                        
+                    current_depth += 1
+            else:
                 move = find_best_negamax_move(deepcopy(state), player, current_depth)
-                
-                if move[0] is not None and move[1] is not None:
-                    best_move = move
-                    result[0] = move[0]  # Position
-                    result[1] = move[1]  # Piece to give
-                    
-                current_depth += 1
+                result[0] = move[0]  # Position
+                result[1] = shufflepiece(move[1])  # Piece to give
+
         except Exception as e:
             print(f"Error in calculation thread: {e}")
-    
+
+    result = [None, None]  # Will store the final position and piece
     # Start the calculation thread
-    thread = threading.Thread(target=calculation_thread)
+    thread = threading.Thread(target=calculation_thread, args=(result,))
     thread.daemon = True
-    
-    start_time = time.time()
     thread.start()
-    
     # Wait for the thread with timeout
     thread.join(timeout=2.5)  # Slightly less than 3s to ensure safe return
     
     # Signal the thread to stop if it's still running
     stop_calculation.set()
-    
-    # Calculate empty positions and available pieces for fallback
-    empty_positions = [i for i in range(16) if state["board"][i] is None]
-    available_pieces = piece()
-    for p in state["board"]:
-        if p in available_pieces:
-            available_pieces.remove(p)
-    try:
-        available_pieces.remove(state["piece"])
-    except:
-        pass
-    
-    # If we have a valid result, use it
-    if result[0] is not None and result[1] is not None:
-        return result[0], shufflepiece(result[1])
-    
-    # Otherwise, make a random move as fallback
-    if empty_positions and available_pieces:
-        return random.choice(empty_positions), shufflepiece(random.choice(available_pieces))
-    elif empty_positions:
-        return random.choice(empty_positions), None
-    
-    return None, None  # No move possible
+    return result[0], result[1]  # No move possible

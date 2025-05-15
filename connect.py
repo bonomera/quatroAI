@@ -39,9 +39,9 @@ def connection(): # Establishes and returns a socket connection to the game serv
 def identification(s): # Sends identification to server, returns the port for server to connect back.
     try:
         identifiant = {"request": "subscribe", 
-                        "port": 12345, # Port this client will listen on for server messages.
-                        "name": "BotBotBot2", # Name of the client
-                        "matricules": ["23387"]} # Matricule
+                        "port": 54345, # Port this client will listen on for server messages.
+                        "name": "BotBotBot", # Name of the client
+                        "matricules": ["23383"]} # Matricule
         json_identifiant = json.dumps(identifiant)
         s.sendall(json_identifiant.encode('utf-8'))
         response = s.recv(1024).decode('utf-8') # Receive server's response.
@@ -59,44 +59,45 @@ def identification(s): # Sends identification to server, returns the port for se
         return None
     return identifiant['port']
 
-def refreshdata(conn, addr): # Handles requests (ping, play) from a game server connection.
+def ponganswer(ping_data,conn):
     try:
-        while True:
-            ping = conn.recv(1024).decode('utf-8') # Receive and decode data from the game server continually
-            
-            try:
-                ping_data = json.loads(ping)
-                if ping_data.get('request') == 'ping': # Answer pong in json if receive ping from server
-                    pong = {"response": "pong"}
-                    conn.sendall(json.dumps(pong).encode('utf-8'))
-
-                elif ping_data.get('errors') != []: # Save error list 
-                    save_time(ping_data.get('errors'))
-
-                elif ping_data.get('request') == 'play': # Play if server requests a move.
-                    state_game = ping_data.get('state')
-                    try:
-                            pos, piece_to_give = game(state_game) # AI calculates the best move.
-                            while pos is None and state_game["board"] != [None]*16 and time.time()- start_time < 3 : # Retry logic if move calculation failed initially.
-                                depth = 6
-                                player = str(state_game["current"])
-                                pos, piece_to_give= find_best_negamax_move(state_game, player, depth+1)
-                            move_payload = { "pos": pos, "piece": piece_to_give }
-                            move_response = { "response": "move", "move": move_payload, "message": f"^^)" }
-                            conn.sendall((json.dumps(move_response) + '\n').encode('utf-8')) # Send the calculated move.
-                    except:
-                        save_time(state_game)
-                        pass
-            except json.JSONDecodeError:
-                continue # Ignores malformed JSON messages.
-    except socket.error as e:
-        print(f"Socket error with {addr}: {e}")
+            pong = {"response": "pong"}
+            conn.sendall(json.dumps(pong).encode('utf-8'))
+    except Exception as e:
+        print(f'2{e}')
     finally:
         conn.close()
-        print(f"Connection closed with {addr} ")
+def play(ping_data,conn,start_time):
+    state_game = ping_data.get('state')
+    start_time = time.time()  # Définir start_time ici
+    try:
+        pos, piece_to_give = game(state_game,start_time) # AI calculates the best move.
+        while pos is None and state_game["board"] != [None]*16 and time.time() - start_time < 3: # Retry logic if move calculation failed initially.
+            depth = 6
+            player = str(state_game["current"])
+            pos, piece_to_give = find_best_negamax_move(state_game, player, depth+1)
+        move_payload = { "pos": pos, "piece": piece_to_give }
+        move_response = { "response": "move", "move": move_payload, "message": f"^^)" }
+        conn.sendall((json.dumps(move_response) + '\n').encode('utf-8')) # Send the calculated move.
+    except Exception as e:
+        print(f'1{e}')
+    finally:
+        conn.close()
+def refreshdata(conn, addr,ping_data):
+    try:
+        if ping_data.get('request') == 'ping': # Answer pong in json if receive ping from server
+            pong_thread = threading.Thread(target=ponganswer, args=(ping_data,conn)) 
+            pong_thread.start()
+        if ping_data.get('request') == 'play': # Play if server requests a move.
+            start_time = time.time()
+            game_thread = threading.Thread(target=play, args=(ping_data,conn,start_time)) 
+            game_thread.start()
+    except:
+        pass
 
 def main(port, host): # Sets up this client's server to listen for game server's requests.
     address = (host, port)
+    print(address)
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.bind(address)
@@ -105,13 +106,14 @@ def main(port, host): # Sets up this client's server to listen for game server's
         while True:
             try:
                 conn, addr = s.accept() # Accept connection from game server.
-                client_thread = threading.Thread(target=refreshdata, args=(conn, addr)) # Handle each connection in a new thread.
-                client_thread.start()
+                ping = conn.recv(1024).decode('utf-8')
+                ping_data = json.loads(ping)
+                refresh_thread = threading.Thread(target=refreshdata, args=(conn,addr, ping_data)) 
+                refresh_thread.start()
             except socket.timeout:
                 continue
-    finally:
-        s.close()
-        print("Server socket closed")
+    except Exception as e:
+        print(e)
 
 # Main program execution
 try:

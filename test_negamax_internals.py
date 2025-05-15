@@ -199,7 +199,7 @@ class TestNegamaxInternals:
         # Create a game state that requires strategic thinking
         test_state = {
             "players": ["Player1", "Player2"],
-            "current": "0",
+            "current": 0,
             "board": [
                 'BLEP', 'BDFC', 'SLEP', None,  
                 'SDFC', None,   None,  None,
@@ -210,7 +210,7 @@ class TestNegamaxInternals:
         }
         
         # Run the actual negamax algorithm
-        result = algo.negamax(test_state, "0", 2)
+        result = algo.negamax(test_state, 1, 3)
         
         # We can't predict the exact score, but it should be a number
         assert isinstance(result, (int, float))

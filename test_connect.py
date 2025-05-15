@@ -111,13 +111,10 @@ class TestClient:
         mock_addr = ('127.0.0.1', 12345)
         
         # Send ping
-        mock_conn.recv.side_effect = [
-            json.dumps({"request": "ping"}).encode('utf-8'),  
-            socket.error  
-        ]
+        mock_ping_data = {"request": "ping"}
         
         # Call the function
-        client.refreshdata(mock_conn, mock_addr)
+        client.refreshdata(mock_conn, mock_addr, mock_ping_data)
         
         # Assertions
         mock_conn.sendall.assert_called_once()
@@ -147,18 +144,15 @@ class TestClient:
         }
 
         # Send request
-        mock_conn.recv.side_effect = [
-            json.dumps({
+        mock_ping_data = {
                 "request": "play",
                 "lives": 3,
                 "errors": [],  
                 "state": state_game
-            }).encode('utf-8'),
-            socket.error  
-        ]
+            }
         
         # Call the function
-        client.refreshdata(mock_conn, mock_addr)
+        client.refreshdata(mock_conn, mock_addr,mock_ping_data)
         
         # Assertions
         assert mock_conn.sendall.call_count == 1
@@ -188,56 +182,20 @@ class TestClient:
             "piece": "BLEP"
         }
 
-        mock_conn.recv.side_effect = [
-            json.dumps({
+        mock_ping_data = {
                 "request": "play",
                 "lives": 2,
                 "errors": ["error1", "error2"],  # List of error for test
                 "state": state_game
-            }).encode('utf-8'),
-            socket.error  
-        ]
+            }
         
 
         with patch('connect.save_time') as mock_save_time:
             # Call the function
-            client.refreshdata(mock_conn, mock_addr)
+            client.refreshdata(mock_conn, mock_addr,mock_ping_data)
             
             # If save_time is called when list of error
             mock_save_time.assert_called_once_with(["error1", "error2"])
-            mock_conn.close.assert_called_once()
-            
-    def test_refreshdata_invalid_json(self):
-        mock_conn = MagicMock()
-        mock_addr = ('127.0.0.1', 12345)
-
-        # Send invalid json
-        mock_conn.recv.side_effect = [b'{invalid json}', socket.error]
-
-        client.refreshdata(mock_conn, mock_addr)
-        mock_conn.close.assert_called_once()
-    @patch('connect.save_time')
-    def test_refreshdata_game_exception(self, mock_save_time):
-        mock_conn = MagicMock()
-        mock_addr = ('127.0.0.1', 12345)
-        state_game = {
-            "players": ["BotBotBot", "FKY"],
-            "current": 0,
-            "board": [None]*16,
-            "piece": "BLEP"
-        }
-
-        play_request = json.dumps({
-            "request": "play",
-            "errors": [],
-            "state": state_game
-        }).encode('utf-8')
-
-        mock_conn.recv.side_effect = [play_request, socket.error]
-
-        with patch('connect.game', side_effect=Exception("game failed")):
-            client.refreshdata(mock_conn, mock_addr)
-            mock_save_time.assert_called_once_with(state_game)
             mock_conn.close.assert_called_once()
 
     @patch('socket.socket')
